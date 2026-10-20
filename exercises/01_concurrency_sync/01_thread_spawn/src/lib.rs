@@ -25,11 +25,11 @@
 //! Types that implement `Sync` can be referenced from multiple threads simultaneously.
 //! Most Rust standard types are `Send + Sync`; exceptions include `Rc<T>` (non‑atomic reference counting) and raw pointers.
 //!
-//! ## Exercise Structure
-//! 1. **Basic exercises** (`double_in_thread`, `parallel_sum`) – introduce fundamental thread creation.
-//! 2. **Advanced exercises** (`named_sleeper`, `increment_thread_local`, `scoped_slice_sum`, `handle_panic`) – explore additional thread operations.
-//! Each function includes a `TODO` comment indicating where you need to write code.
-//! Run `cargo test` to check your implementations.
+//! ## 练习结构
+//! 1. **基础练习**（`double_in_thread`，`parallel_sum`）– 介绍基本的线程创建。
+//! 2. **高级练习**（`named_sleeper`，`increment_thread_local`，`scoped_slice_sum`，`handle_panic`）– 探索更多线程操作。
+//! 每个函数都包括一个 `TODO` 注释，指明你需要编写代码的位置。
+//! 运行 `cargo test` 来检查你的实现。
 
 #[allow(unused_imports)]
 use std::cell::RefCell;
@@ -157,7 +157,9 @@ pub fn double_in_thread(numbers: Vec<i32>) -> Vec<i32> {
     // TODO: Create a new thread to multiply each element of numbers by 2
     // Use thread::spawn and move closure
     // Use join().unwrap() to get result
-    todo!()
+    let handle = thread::spawn(move || numbers.iter().map(|&x| x * 2).collect::<Vec<i32>>());
+    handle.join().unwrap()
+
 }
 
 /// Sum two vectors in parallel, returning a tuple of two sums.
@@ -167,7 +169,14 @@ pub fn double_in_thread(numbers: Vec<i32>) -> Vec<i32> {
 pub fn parallel_sum(a: Vec<i32>, b: Vec<i32>) -> (i32, i32) {
     // TODO: Create two threads to sum a and b respectively
     // Join both threads to get results
-    todo!()
+    let handle_a = thread::spawn(move || a.iter().sum::<i32>());
+    let handle_b = thread::spawn(move || b.iter().sum::<i32>());
+
+    let sum_a = handle_a.join().unwrap();
+    let sum_b = handle_b.join().unwrap();
+
+    (sum_a, sum_b)
+
 }
 
 // ============================================================================
@@ -185,7 +194,18 @@ pub fn named_sleeper(value: i32, ms: u64) -> i32 {
     // TODO: Create a thread builder with name "sleeper"
     // TODO: Spawn a thread that sleeps for `ms` milliseconds and returns `value`
     // TODO: Join the thread and return the value
-    todo!()
+    let handle = thread::Builder::new()
+        .name("sleeper".into())
+        .spawn(move || {
+            thread::sleep(Duration::from_millis(ms));
+            value
+        })
+        .unwrap();
+
+    handle.join().unwrap()
+
+
+
 }
 
 thread_local! {
@@ -200,7 +220,14 @@ thread_local! {
 /// Hint: Use `THREAD_COUNT.with(|cell| { ... })` to access the thread‑local variable.
 pub fn increment_thread_local() -> usize {
     // TODO: Use THREAD_COUNT.with to increment and return the new count
-    todo!()
+    
+
+
+    THREAD_COUNT.with(|cell| {
+        let mut count = cell.borrow_mut();
+        *count += 1;
+        *count
+    })
 }
 
 /// Spawn two threads using a **scoped thread** to compute the sum of two slices without moving ownership.
@@ -216,7 +243,13 @@ pub fn scoped_slice_sum(a: &[i32], b: &[i32]) -> (i32, i32) {
     // TODO: Use thread::scope to spawn two threads
     // TODO: Each thread sums its slice
     // TODO: Wait for both threads and return the results
-    todo!()
+    thread::scope(|s| {
+        let handle_a = s.spawn(|| a.iter().sum::<i32>());
+        let handle_b = s.spawn(|| b.iter().sum::<i32>());
+        let sum_a = handle_a.join().unwrap();
+        let sum_b = handle_b.join().unwrap();
+        (sum_a, sum_b)
+    })
 }
 
 /// Handle a possible panic in a spawned thread.
@@ -233,7 +266,18 @@ pub fn scoped_slice_sum(a: &[i32], b: &[i32]) -> (i32, i32) {
 pub fn handle_panic(value: i32, should_panic: bool) -> Result<i32, ()> {
     // TODO: Spawn a thread that either panics or returns value
     // TODO: Join and map the result appropriately
-    todo!()
+    let handle = thread::spawn(move || {
+        if should_panic {
+            panic!("oops")
+        } else {
+            value
+        }
+    });
+    match handle.join() {
+        Ok(result) => Ok(result),
+        Err(_) => Err(()),
+    }
+
 }
 
 #[cfg(test)]
